@@ -1,450 +1,528 @@
--- MM2 Auto Farm (FIXED - CoinContainer Model + FLYING + FAST HIT)
-local player = game:GetService("Players").LocalPlayer
-local runService = game:GetService("RunService")
-local userInput = game:GetService("UserInputService")
+--[[
+	🌐 TELEPORT MENU — DEBUG VERSION
+	Copy рядом с твоим Job ID (в инфо-блоке)
+]]
 
--- Variables
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local speed = 16
-local isRunning = false
+if game:GetService("CoreGui"):FindFirstChild("TeleportUI") then
+	game:GetService("CoreGui"):FindFirstChild("TeleportUI"):Destroy()
+end
+
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+print("=== TELEPORT MENU START ===")
+print("Place ID:", game.PlaceId)
+print("Job ID:", game.JobId)
+print("Игра:", game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name)
+
+local Lang = "RU"
+
+local T = {
+	RU = {
+		title = "🌐 ТЕЛЕПОРТ",
+		jobLabel = "JOB ID СЕРВЕРА",
+		jobPlaceholder = "Введи Job ID",
+		connectBtn = "🚀 ПОДКЛЮЧИТЬСЯ",
+		loadingBtn = "⏳ ЗАГРУЗКА...",
+		copyBtn = "📋 Copy",
+		copiedBtn = "✓ Copied!",
+		ready = "Готово ✓",
+		enterId = "Введи Job ID!",
+		badFormat = "Неверный формат!",
+		sameServer = "Ты уже тут!",
+		connecting = "Подключение...",
+		error = "Ошибка: ",
+		noClipboard = "❌ Нет доступа к буферу",
+	},
+	EN = {
+		title = "🌐 TELEPORT",
+		jobLabel = "SERVER JOB ID",
+		jobPlaceholder = "Enter Job ID",
+		connectBtn = "🚀 CONNECT",
+		loadingBtn = "⏳ LOADING...",
+		copyBtn = "📋 Copy",
+		copiedBtn = "✓ Copied!",
+		ready = "Ready ✓",
+		enterId = "Enter Job ID!",
+		badFormat = "Invalid format!",
+		sameServer = "Already here!",
+		connecting = "Connecting...",
+		error = "Error: ",
+		noClipboard = "❌ No clipboard access",
+	},
+}
+
+local function L(key) return T[Lang][key] end
+
+-- ============ GUI ============
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TeleportUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+if gethui then
+	ScreenGui.Parent = gethui()
+elseif syn and syn.protect_gui then
+	syn.protect_gui(ScreenGui)
+	ScreenGui.Parent = game:GetService("CoreGui")
+else
+	ScreenGui.Parent = game:GetService("CoreGui")
+end
+
+local C = {
+	Bg = Color3.fromRGB(18, 18, 22),
+	Sec = Color3.fromRGB(28, 28, 36),
+	Acc = Color3.fromRGB(0, 170, 255),
+	AccH = Color3.fromRGB(40, 200, 255),
+	Txt = Color3.fromRGB(240, 240, 245),
+	Dim = Color3.fromRGB(140, 140, 155),
+	Str = Color3.fromRGB(48, 48, 58),
+	Ok = Color3.fromRGB(80, 220, 120),
+	Err = Color3.fromRGB(240, 80, 90),
+	Btn = Color3.fromRGB(38, 38, 48),
+	BtnH = Color3.fromRGB(55, 55, 70),
+	Warn = Color3.fromRGB(255, 180, 60),
+}
+
+local function corner(p, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r or 8)
+	c.Parent = p
+end
+
+local function stroke(p)
+	local s = Instance.new("UIStroke")
+	s.Color = C.Str
+	s.Thickness = 1
+	s.Parent = p
+end
+
+-- ============ ОКНО ============
+local Main = Instance.new("Frame")
+Main.Size = UDim2.new(0, 400, 0, 330)
+Main.Position = UDim2.new(0.5, -200, 0.5, -165)
+Main.BackgroundColor3 = C.Bg
+Main.BorderSizePixel = 0
+Main.Active = true
+Main.Draggable = true
+Main.Parent = ScreenGui
+corner(Main, 14)
+stroke(Main)
+
+local H = Instance.new("Frame")
+H.Size = UDim2.new(1, 0, 0, 45)
+H.BackgroundColor3 = C.Sec
+H.BorderSizePixel = 0
+H.Parent = Main
+corner(H, 14)
+
+local HFix = Instance.new("Frame")
+HFix.Size = UDim2.new(1, 0, 0, 14)
+HFix.Position = UDim2.new(0, 0, 1, -14)
+HFix.BackgroundColor3 = C.Sec
+HFix.BorderSizePixel = 0
+HFix.Parent = H
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -170, 1, 0)
+Title.Position = UDim2.new(0, 20, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = L("title")
+Title.TextColor3 = C.Txt
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = H
+
+local RuBtn = Instance.new("TextButton")
+RuBtn.Size = UDim2.new(0, 30, 0, 26)
+RuBtn.Position = UDim2.new(1, -138, 0.5, -13)
+RuBtn.BackgroundColor3 = C.Acc
+RuBtn.Text = "RU"
+RuBtn.TextColor3 = C.Txt
+RuBtn.Font = Enum.Font.GothamBold
+RuBtn.TextSize = 11
+RuBtn.AutoButtonColor = false
+RuBtn.Parent = H
+corner(RuBtn, 6)
+
+local EnBtn = Instance.new("TextButton")
+EnBtn.Size = UDim2.new(0, 30, 0, 26)
+EnBtn.Position = UDim2.new(1, -104, 0.5, -13)
+EnBtn.BackgroundColor3 = C.Btn
+EnBtn.Text = "EN"
+EnBtn.TextColor3 = C.Txt
+EnBtn.Font = Enum.Font.GothamBold
+EnBtn.TextSize = 11
+EnBtn.AutoButtonColor = false
+EnBtn.Parent = H
+corner(EnBtn, 6)
+
+local MinBtn = Instance.new("TextButton")
+MinBtn.Size = UDim2.new(0, 26, 0, 26)
+MinBtn.Position = UDim2.new(1, -70, 0.5, -13)
+MinBtn.BackgroundColor3 = C.Btn
+MinBtn.Text = "—"
+MinBtn.TextColor3 = C.Txt
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 14
+MinBtn.AutoButtonColor = false
+MinBtn.Parent = H
+corner(MinBtn, 6)
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 26, 0, 26)
+CloseBtn.Position = UDim2.new(1, -40, 0.5, -13)
+CloseBtn.BackgroundColor3 = C.Btn
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = C.Txt
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 13
+CloseBtn.AutoButtonColor = false
+CloseBtn.Parent = H
+corner(CloseBtn, 6)
+
+-- Мини-иконка
+local MiniIcon = Instance.new("TextButton")
+MiniIcon.Size = UDim2.new(0, 50, 0, 50)
+MiniIcon.Position = UDim2.new(0, 20, 0.5, -25)
+MiniIcon.BackgroundColor3 = C.Acc
+MiniIcon.Text = "🌐"
+MiniIcon.TextColor3 = C.Txt
+MiniIcon.Font = Enum.Font.GothamBold
+MiniIcon.TextSize = 22
+MiniIcon.AutoButtonColor = false
+MiniIcon.Visible = false
+MiniIcon.Active = true
+MiniIcon.Draggable = true
+MiniIcon.Parent = ScreenGui
+corner(MiniIcon, 25)
+stroke(MiniIcon)
+
+-- Контент
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, 0, 1, -45)
+Content.Position = UDim2.new(0, 0, 0, 45)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+local InputLabel = Instance.new("TextLabel")
+InputLabel.Size = UDim2.new(1, -40, 0, 16)
+InputLabel.Position = UDim2.new(0, 20, 0, 14)
+InputLabel.BackgroundTransparency = 1
+InputLabel.Text = L("jobLabel")
+InputLabel.TextColor3 = C.Dim
+InputLabel.Font = Enum.Font.GothamBold
+InputLabel.TextSize = 10
+InputLabel.TextXAlignment = Enum.TextXAlignment.Left
+InputLabel.Parent = Content
+
+-- Поле ввода (без Copy)
+local InputFrame = Instance.new("Frame")
+InputFrame.Size = UDim2.new(1, -40, 0, 44)
+InputFrame.Position = UDim2.new(0, 20, 0, 34)
+InputFrame.BackgroundColor3 = C.Sec
+InputFrame.BorderSizePixel = 0
+InputFrame.Parent = Content
+corner(InputFrame, 10)
+stroke(InputFrame)
+
+local Input = Instance.new("TextBox")
+Input.Size = UDim2.new(1, -20, 1, 0)
+Input.Position = UDim2.new(0, 10, 0, 0)
+Input.BackgroundTransparency = 1
+Input.PlaceholderText = L("jobPlaceholder")
+Input.PlaceholderColor3 = C.Dim
+Input.Text = ""
+Input.TextColor3 = C.Txt
+Input.Font = Enum.Font.Code
+Input.TextSize = 13
+Input.TextXAlignment = Enum.TextXAlignment.Left
+Input.ClearTextOnFocus = false
+Input.Parent = InputFrame
+
+-- Кнопка подключения
+local ConnectBtn = Instance.new("TextButton")
+ConnectBtn.Size = UDim2.new(1, -40, 0, 50)
+ConnectBtn.Position = UDim2.new(0, 20, 0, 90)
+ConnectBtn.BackgroundColor3 = C.Acc
+ConnectBtn.Text = L("connectBtn")
+ConnectBtn.TextColor3 = C.Txt
+ConnectBtn.Font = Enum.Font.GothamBold
+ConnectBtn.TextSize = 14
+ConnectBtn.AutoButtonColor = false
+ConnectBtn.Parent = Content
+corner(ConnectBtn, 10)
+
+ConnectBtn.MouseEnter:Connect(function()
+	TweenService:Create(ConnectBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.AccH}):Play()
+end)
+ConnectBtn.MouseLeave:Connect(function()
+	TweenService:Create(ConnectBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.Acc}):Play()
+end)
+
+-- ============ ИНФО-БЛОК С JOB ID + COPY ============
+local InfoFrame = Instance.new("Frame")
+InfoFrame.Size = UDim2.new(1, -40, 0, 80)
+InfoFrame.Position = UDim2.new(0, 20, 0, 148)
+InfoFrame.BackgroundColor3 = C.Sec
+InfoFrame.BorderSizePixel = 0
+InfoFrame.Parent = Content
+corner(InfoFrame, 8)
+stroke(InfoFrame)
+
+-- Place ID (строка 1)
+local PlaceIdLabel = Instance.new("TextLabel")
+PlaceIdLabel.Size = UDim2.new(1, -20, 0, 20)
+PlaceIdLabel.Position = UDim2.new(0, 10, 0, 6)
+PlaceIdLabel.BackgroundTransparency = 1
+PlaceIdLabel.Text = "Place ID: " .. tostring(game.PlaceId)
+PlaceIdLabel.TextColor3 = C.Dim
+PlaceIdLabel.Font = Enum.Font.Code
+PlaceIdLabel.TextSize = 10
+PlaceIdLabel.TextXAlignment = Enum.TextXAlignment.Left
+PlaceIdLabel.Parent = InfoFrame
+
+-- Job ID (строка 2) — слева текст, справа кнопка Copy
+local JobIdLabel = Instance.new("TextLabel")
+JobIdLabel.Size = UDim2.new(1, -100, 0, 20)
+JobIdLabel.Position = UDim2.new(0, 10, 0, 26)
+JobIdLabel.BackgroundTransparency = 1
+JobIdLabel.Text = "Job ID: " .. game.JobId
+JobIdLabel.TextColor3 = C.Dim
+JobIdLabel.Font = Enum.Font.Code
+JobIdLabel.TextSize = 10
+JobIdLabel.TextXAlignment = Enum.TextXAlignment.Left
+JobIdLabel.TextTruncate = Enum.TextTruncate.AtEnd
+JobIdLabel.Parent = InfoFrame
+
+-- ✅ КНОПКА COPY РЯДОМ С JOB ID
+local CopyBtn = Instance.new("TextButton")
+CopyBtn.Size = UDim2.new(0, 76, 0, 22)
+CopyBtn.Position = UDim2.new(1, -84, 0, 25)
+CopyBtn.BackgroundColor3 = C.Acc
+CopyBtn.Text = L("copyBtn")
+CopyBtn.TextColor3 = C.Txt
+CopyBtn.Font = Enum.Font.GothamBold
+CopyBtn.TextSize = 10
+CopyBtn.AutoButtonColor = false
+CopyBtn.Parent = InfoFrame
+corner(CopyBtn, 6)
+
+CopyBtn.MouseEnter:Connect(function()
+	if CopyBtn.Text ~= L("copiedBtn") then
+		TweenService:Create(CopyBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.AccH}):Play()
+	end
+end)
+CopyBtn.MouseLeave:Connect(function()
+	if CopyBtn.Text ~= L("copiedBtn") then
+		TweenService:Create(CopyBtn, TweenInfo.new(0.15), {BackgroundColor3 = C.Acc}):Play()
+	end
+end)
+
+-- Игра (строка 3)
+local GameLabel = Instance.new("TextLabel")
+GameLabel.Size = UDim2.new(1, -20, 0, 20)
+GameLabel.Position = UDim2.new(0, 10, 0, 50)
+GameLabel.BackgroundTransparency = 1
+GameLabel.Text = "Игра: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+GameLabel.TextColor3 = C.Dim
+GameLabel.Font = Enum.Font.Code
+GameLabel.TextSize = 10
+GameLabel.TextXAlignment = Enum.TextXAlignment.Left
+GameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+GameLabel.Parent = InfoFrame
+
+-- Статус
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -40, 0, 24)
+Status.Position = UDim2.new(0, 20, 1, -32)
+Status.BackgroundTransparency = 1
+Status.Text = L("ready")
+Status.TextColor3 = C.Ok
+Status.Font = Enum.Font.Gotham
+Status.TextSize = 11
+Status.Parent = Content
+
+local function setStatus(t, color)
+	Status.Text = t
+	Status.TextColor3 = color or C.Ok
+	print("[STATUS]", t)
+end
+
+-- Язык
+local function applyLanguage()
+	Title.Text = L("title")
+	InputLabel.Text = L("jobLabel")
+	Input.PlaceholderText = L("jobPlaceholder")
+	ConnectBtn.Text = L("connectBtn")
+	if CopyBtn.Text ~= L("copiedBtn") then
+		CopyBtn.Text = L("copyBtn")
+	end
+end
+
+RuBtn.MouseButton1Click:Connect(function()
+	Lang = "RU"
+	RuBtn.BackgroundColor3 = C.Acc
+	EnBtn.BackgroundColor3 = C.Btn
+	applyLanguage()
+end)
+
+EnBtn.MouseButton1Click:Connect(function()
+	Lang = "EN"
+	RuBtn.BackgroundColor3 = C.Btn
+	EnBtn.BackgroundColor3 = C.Acc
+	applyLanguage()
+end)
+
+-- Свернуть
 local isMinimized = false
-local noclipEnabled = true
-
--- Physics Variables (для полета)
-local linearVelocity = nil
-local attachment = nil
-
--- GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "AutoFarmGUI"
-gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = player:WaitForChild("PlayerGui")
-
--- Main Frame
-local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 280, 0, 230)
-main.Position = UDim2.new(0.5, -140, 0.5, -115)
-main.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
-main.BackgroundTransparency = 0.1
-main.BorderSizePixel = 0
-main.Active = true
-main.Draggable = true
-main.ClipsDescendants = true
-main.Parent = gui
-
--- Blur
-Instance.new("BlurEffect", main).Size = 6
-
--- Title Bar
-local bar = Instance.new("Frame", main)
-bar.Size = UDim2.new(1, 0, 0, 30)
-bar.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
-bar.BorderSizePixel = 0
-
--- Title
-local title = Instance.new("TextLabel", bar)
-title.Size = UDim2.new(1, -60, 1, 0)
-title.Position = UDim2.new(0, 10, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "🪙 AUTO FARM"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 15
-title.Font = Enum.Font.GothamBold
-title.TextXAlignment = Enum.TextXAlignment.Left
-
--- Minimize Button
-local minBtn = Instance.new("TextButton", bar)
-minBtn.Size = UDim2.new(0, 24, 0, 24)
-minBtn.Position = UDim2.new(1, -60, 0, 3)
-minBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-minBtn.BorderSizePixel = 0
-minBtn.Text = "─"
-minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-minBtn.TextSize = 14
-minBtn.Font = Enum.Font.GothamBold
-
--- Close Button
-local closeBtn = Instance.new("TextButton", bar)
-closeBtn.Size = UDim2.new(0, 24, 0, 24)
-closeBtn.Position = UDim2.new(1, -32, 0, 3)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeBtn.BorderSizePixel = 0
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.TextSize = 12
-closeBtn.Font = Enum.Font.GothamBold
-
--- Content
-local content = Instance.new("Frame", main)
-content.Size = UDim2.new(1, 0, 1, -30)
-content.Position = UDim2.new(0, 0, 0, 30)
-content.BackgroundTransparency = 1
-
--- Speed Control
-local speedFrame = Instance.new("Frame", content)
-speedFrame.Size = UDim2.new(0, 250, 0, 35)
-speedFrame.Position = UDim2.new(0.5, -125, 0, 10)
-speedFrame.BackgroundTransparency = 1
-
-local speedLabel = Instance.new("TextLabel", speedFrame)
-speedLabel.Size = UDim2.new(0, 100, 1, 0)
-speedLabel.Position = UDim2.new(0, 0, 0, 0)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "Speed: 16"
-speedLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-speedLabel.TextSize = 13
-speedLabel.Font = Enum.Font.GothamBold
-speedLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local speedInput = Instance.new("TextBox", speedFrame)
-speedInput.Size = UDim2.new(0, 70, 1, 0)
-speedInput.Position = UDim2.new(1, -70, 0, 0)
-speedInput.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
-speedInput.BorderSizePixel = 0
-speedInput.Text = "16"
-speedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedInput.TextSize = 13
-speedInput.Font = Enum.Font.GothamBold
-speedInput.ClearTextOnFocus = false
-
-speedInput.FocusLost:Connect(function()
-    local val = tonumber(speedInput.Text)
-    if val then
-        speed = math.clamp(val, 1, 50)
-        speedInput.Text = tostring(speed)
-        speedLabel.Text = "Speed: " .. speed
-    else
-        speedInput.Text = tostring(speed)
-    end
+MinBtn.MouseButton1Click:Connect(function()
+	if isMinimized then return end
+	isMinimized = true
+	Main.Visible = false
+	MiniIcon.Visible = true
 end)
 
--- Noclip Toggle
-local noclipBtn = Instance.new("TextButton", content)
-noclipBtn.Size = UDim2.new(0, 120, 0, 30)
-noclipBtn.Position = UDim2.new(0.5, -125, 0, 55)
-noclipBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-noclipBtn.BorderSizePixel = 0
-noclipBtn.Text = "🛡 NOCLIP ON"
-noclipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-noclipBtn.TextSize = 13
-noclipBtn.Font = Enum.Font.GothamBold
-
-noclipBtn.MouseButton1Click:Connect(function()
-    noclipEnabled = not noclipEnabled
-    noclipBtn.Text = noclipEnabled and "🛡 NOCLIP ON" or "🛡 NOCLIP OFF"
-    noclipBtn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+MiniIcon.MouseButton1Click:Connect(function()
+	if not isMinimized then return end
+	isMinimized = false
+	MiniIcon.Visible = false
+	Main.Visible = true
 end)
 
--- Start/Stop Button
-local toggleBtn = Instance.new("TextButton", content)
-toggleBtn.Size = UDim2.new(0, 120, 0, 35)
-toggleBtn.Position = UDim2.new(0.5, 5, 0, 55)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-toggleBtn.BorderSizePixel = 0
-toggleBtn.Text = "▶ START"
-toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 14
-toggleBtn.Font = Enum.Font.GothamBold
-
--- Status
-local status = Instance.new("TextLabel", content)
-status.Size = UDim2.new(1, 0, 0, 20)
-status.Position = UDim2.new(0, 0, 0, 105)
-status.BackgroundTransparency = 1
-status.Text = "● IDLE"
-status.TextColor3 = Color3.fromRGB(255, 100, 100)
-status.TextSize = 12
-status.Font = Enum.Font.GothamBold
-
--- Stats
-local statsLabel = Instance.new("TextLabel", content)
-statsLabel.Size = UDim2.new(1, 0, 0, 20)
-statsLabel.Position = UDim2.new(0, 0, 0, 125)
-statsLabel.BackgroundTransparency = 1
-statsLabel.Text = "Coins: 0 | AFK: Off"
-statsLabel.TextColor3 = Color3.fromRGB(150, 150, 200)
-statsLabel.TextSize = 11
-statsLabel.Font = Enum.Font.Gotham
-
--- Minimize function
-minBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    main.Size = isMinimized and UDim2.new(0, 280, 0, 30) or UDim2.new(0, 280, 0, 230)
-    content.Visible = not isMinimized
+CloseBtn.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
 end)
 
--- Close function
-closeBtn.MouseButton1Click:Connect(function()
-    main.Visible = not main.Visible
-end)
-
--- NOCLIP FUNCTION
-local function enableNoclip()
-    if not noclipEnabled then return end
-    
-    local char = player.Character
-    if not char then return end
-    
-    for _, part in pairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = false
-        end
-    end
+-- ============ КОПИРОВАНИЕ JOB ID ============
+local function copyToClipboard(text)
+	if setclipboard then
+		local ok = pcall(setclipboard, text)
+		if ok then return true end
+	end
+	if toclipboard then
+		local ok = pcall(toclipboard, text)
+		if ok then return true end
+	end
+	if syn and syn.setclipboard then
+		local ok = pcall(syn.setclipboard, text)
+		if ok then return true end
+	end
+	return false
 end
 
--- Keep character upright
-local function keepUpright()
-    local char = player.Character
-    if not char then return end
-    
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, hrp.Orientation.Y / 57.3, 0)
-    end
-end
-
--- Anti-AFK
-local function antiAFK()
-    local vk = game:GetService("VirtualUser")
-    if vk then
-        pcall(function()
-            vk:CaptureController()
-            vk:ClickButton2(Vector2.new())
-        end)
-    end
-end
-
--- FIND COINS (FIXED - CoinContainer is Model, Coin_Server are Parts)
-local function findCoins()
-    local coins = {}
-    local container = workspace:FindFirstChild("CoinContainer")
-    
-    if container then
-        for _, child in pairs(container:GetChildren()) do
-            if child.Name == "Coin_Server" and child:IsA("BasePart") and child.Parent then
-                if child:FindFirstChild("Handle") or child:IsA("Part") then
-                    table.insert(coins, child)
-                end
-            end
-        end
-    else
-        for _, child in pairs(workspace:GetDescendants()) do
-            if child.Name == "Coin_Server" and child:IsA("BasePart") and child.Parent and child.Parent.Name == "CoinContainer" then
-                table.insert(coins, child)
-            end
-        end
-    end
-    
-    return coins
-end
-
--- Создание объекта полета (LinearVelocity)
-local function getLinearVelocity(hrp)
-    if not linearVelocity or linearVelocity.Parent ~= hrp then
-        if linearVelocity then linearVelocity:Destroy() end
-        if attachment then attachment:Destroy() end
-        
-        attachment = Instance.new("Attachment")
-        attachment.Name = "FlyAttachment"
-        attachment.Parent = hrp
-        
-        linearVelocity = Instance.new("LinearVelocity")
-        linearVelocity.Name = "FlyLinearVelocity"
-        linearVelocity.MaxForce = math.huge
-        linearVelocity.Attachment0 = attachment
-        linearVelocity.Parent = hrp
-    end
-    return linearVelocity
-end
-
--- Move to target (NO SLOWDOWN)
-local function moveTo(target)
-    if not target or not target.Parent then return false end
-    
-    local char = player.Character
-    if not char then return false end
-    
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return false end
-    
-    enableNoclip()
-    keepUpright()
-    
-    local distance = (hrp.Position - target.Position).Magnitude
-    
-    -- Дистанция остановки (0.5 - влетает прямо в монету)
-    if distance > 0.5 then
-        status.Text = "✈ Flying to coin..."
-        
-        local vel = getLinearVelocity(hrp)
-        local startTime = os.clock()
-        local timeout = 10
-
-        while isRunning and target.Parent and (hrp.Position - target.Position).Magnitude > 0.5 and (os.clock() - startTime) < timeout do
-            local direction = (target.Position - hrp.Position).Unit
-            
-            -- МАКСИМАЛЬНАЯ СКОРОСТЬ без замедления
-            vel.VectorVelocity = direction * (speed * 2)
-            
-            runService.Heartbeat:Wait()
-        end
-        
-        -- Останавливаемся сразу после касания
-        if linearVelocity then
-            linearVelocity.VectorVelocity = Vector3.zero
-        end
-        
-        return true
-    end
-    
-    return true
-end
-
--- Main farm loop
-local collected = 0
-local afkTimer = 0
-
-local function farmLoop()
-    while isRunning do
-        enableNoclip()
-        keepUpright()
-        
-        local coins = findCoins()
-        
-        if #coins > 0 then
-            status.Text = "🔍 Found " .. #coins .. " coins"
-            status.TextColor3 = Color3.fromRGB(255, 200, 0)
-            
-            -- Sort by distance
-            local char = player.Character
-            if char then
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    table.sort(coins, function(a, b)
-                        return (hrp.Position - a.Position).Magnitude < (hrp.Position - b.Position).Magnitude
-                    end)
-                end
-            end
-            
-            -- Go to each coin
-            for _, coin in ipairs(coins) do
-                if not isRunning then break end
-                if not coin.Parent then continue end
-                
-                status.Text = "🎯 Moving to coin..."
-                status.TextColor3 = Color3.fromRGB(100, 200, 255)
-                
-                local success = moveTo(coin)
-                
-                if success and coin.Parent then
-                    status.Text = "✅ Collecting..."
-                    status.TextColor3 = Color3.fromRGB(50, 255, 50)
-                    
-                    if not coin.Parent then
-                        collected = collected + 1
-                        statsLabel.Text = "Coins: " .. collected .. " | AFK: On"
-                        status.Text = "💰 +1 (" .. collected .. " total)"
-                        status.TextColor3 = Color3.fromRGB(0, 255, 0)
-                    end
-                end
-                
-                -- Anti-AFK every 20 seconds
-                afkTimer = afkTimer + 1
-                if afkTimer >= 20 then
-                    antiAFK()
-                    afkTimer = 0
-                end
-                
-                task.wait()
-            end
-        else
-            status.Text = "⏳ No coins found..."
-            status.TextColor3 = Color3.fromRGB(255, 100, 100)
-            task.wait(0.5)
-            
-            afkTimer = afkTimer + 1
-            if afkTimer >= 10 then
-                antiAFK()
-                afkTimer = 0
-            end
-        end
-        
-        task.wait()
-    end
-end
-
--- Toggle farm
-toggleBtn.MouseButton1Click:Connect(function()
-    isRunning = not isRunning
-    
-    if isRunning then
-        toggleBtn.Text = "⏹ STOP"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        status.Text = "▶ RUNNING..."
-        status.TextColor3 = Color3.fromRGB(50, 255, 50)
-        statsLabel.Text = "Coins: " .. collected .. " | AFK: On"
-        afkTimer = 0
-        
-        enableNoclip()
-        task.spawn(farmLoop)
-    else
-        toggleBtn.Text = "▶ START"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        status.Text = "● STOPPED"
-        status.TextColor3 = Color3.fromRGB(255, 100, 100)
-        statsLabel.Text = "Coins: " .. collected .. " | AFK: Off"
-        
-        -- Очистка физики полета при остановке
-        if linearVelocity then
-            linearVelocity:Destroy()
-            linearVelocity = nil
-        end
-        if attachment then
-            attachment:Destroy()
-            attachment = nil
-        end
-    end
+CopyBtn.MouseButton1Click:Connect(function()
+	print("=== КОПИРОВАНИЕ JOB ID ===")
+	
+	local myJobId = game.JobId
+	print("Текущий Job ID:", myJobId)
+	
+	if not myJobId or myJobId == "" then
+		setStatus("❌ Job ID недоступен", C.Err)
+		return
+	end
+	
+	local success = copyToClipboard(myJobId)
+	
+	if success then
+		print("✅ Скопировано в буфер")
+		
+		CopyBtn.Text = L("copiedBtn")
+		CopyBtn.BackgroundColor3 = C.Ok
+		
+		setStatus("✓ ID скопирован!", C.Ok)
+		
+		task.wait(1.5)
+		
+		CopyBtn.Text = L("copyBtn")
+		CopyBtn.BackgroundColor3 = C.Acc
+	else
+		print("❌ Не удалось скопировать")
+		setStatus(L("noClipboard"), C.Err)
+	end
 end)
 
--- Hotkey (RightShift)
-userInput.InputBegan:Connect(function(input, gp)
-    if not gp and input.KeyCode == Enum.KeyCode.RightShift then
-        main.Visible = not main.Visible
-    end
+-- ============ ПРОВЕРКА ФОРМАТА ============
+local function validateJobId(id)
+	if not id or id == "" then return false end
+	local pattern = "^%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x$"
+	return id:match(pattern) ~= nil
+end
+
+-- ============ ПОДКЛЮЧЕНИЕ ============
+ConnectBtn.MouseButton1Click:Connect(function()
+	print("=== НАЖАТА КНОПКА ПОДКЛЮЧЕНИЯ ===")
+	
+	local jobId = Input.Text:gsub("%s+", "")
+	print("Введено:", jobId)
+	
+	if jobId == "" then
+		setStatus(L("enterId"), C.Err)
+		return
+	end
+	
+	print("Проверка формата...")
+	if not validateJobId(jobId) then
+		print("❌ ФОРМАТ НЕВЕРНЫЙ")
+		setStatus(L("badFormat"), C.Err)
+		return
+	end
+	print("✅ Формат правильный")
+	
+	if jobId == game.JobId then
+		setStatus(L("sameServer"), C.Warn)
+		return
+	end
+	
+	setStatus(L("connecting"), C.Warn)
+	ConnectBtn.Text = L("loadingBtn")
+	
+	print("Телепорт в Place:", game.PlaceId, "Job:", jobId)
+	
+	local ok, err = pcall(function()
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId, LocalPlayer)
+	end)
+	
+	if not ok then
+		print("❌ ОШИБКА ТЕЛЕПОРТА:", err)
+		setStatus(L("error") .. tostring(err), C.Err)
+		ConnectBtn.Text = L("connectBtn")
+	else
+		print("✅ Телепорт запущен успешно")
+	end
 end)
 
--- Character respawn
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    humanoid = newChar:WaitForChild("Humanoid")
-    task.wait(0.5)
-    
-    -- Сбрасываем переменные полета при респавне
-    linearVelocity = nil
-    attachment = nil
-    
-    if noclipEnabled then
-        enableNoclip()
-    end
-    
-    if isRunning then
-        status.Text = "🔄 Respawned..."
-        status.TextColor3 = Color3.fromRGB(255, 200, 0)
-    end
+-- Enter
+Input.FocusLost:Connect(function(enter)
+	if enter and Input.Text ~= "" then
+		ConnectBtn.MouseButton1Click:Fire()
+	end
 end)
 
--- Keep noclip active
-runService.Heartbeat:Connect(function()
-    if isRunning or noclipEnabled then
-        enableNoclip()
-        keepUpright()
-    end
+-- RightShift
+UserInputService.InputBegan:Connect(function(input, gpe)
+	if gpe then return end
+	if input.KeyCode == Enum.KeyCode.RightShift then
+		if isMinimized then
+			MiniIcon.Visible = false
+			Main.Visible = true
+			isMinimized = false
+		else
+			Main.Visible = not Main.Visible
+		end
+	end
 end)
 
-print("✅ AUTO FARM LOADED!")
-print("📁 CoinContainer: " .. tostring(workspace:FindFirstChild("CoinContainer") ~= nil))
-print("🪙 Coin_Server parts found: " .. #findCoins())
-print("✈ Flying Mode: Enabled (NO SLOWDOWN)")
-print("⬆ Press RightShift to toggle GUI")
+-- Анимация появления
+Main.Size = UDim2.new(0, 0, 0, 0)
+Main.Position = UDim2.new(0.5, 0, 0.5, 0)
+TweenService:Create(Main, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+	Size = UDim2.new(0, 400, 0, 330),
+	Position = UDim2.new(0.5, -200, 0.5, -165)
+}):Play()
+
+setStatus(L("ready"), C.Ok)
+print("=== МЕНЮ ЗАГРУЖЕНО ===")
